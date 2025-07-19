@@ -1,7 +1,8 @@
-import {Component} from '@angular/core';
+import {Component, inject} from '@angular/core';
 import {NavbarComponent} from '../components/navbar.component';
 import {resumes} from '../../constants';
 import {ResumeCardComponent} from '../components/resume-card.component';
+import {PuterService} from '../services/puter.service';
 
 @Component({
   selector: 'app-home',
@@ -31,6 +32,11 @@ import {ResumeCardComponent} from '../components/resume-card.component';
   `
 })
 export class HomeComponent {
+  #puterService = inject(PuterService);
+  #returnUrl: string | null = null;
+  isAuthenticated = this.#puterService.isAuthenticated;
+
   resumes = resumes
+
 }
 
