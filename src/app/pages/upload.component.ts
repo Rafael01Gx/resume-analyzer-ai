@@ -7,6 +7,8 @@ import {IDataAnalyze} from '../interfaces/data-analyze.interface';
 import {PuterService} from '../services/puter.service';
 import {Pdf2ImgService} from '../services/pdf2img.service';
 import {prepareInstructions} from '../../constants';
+import { v4 as uuidv4 } from 'uuid';
+import {Router} from '@angular/router';
 
 @Component({
   selector: 'app-upload',
@@ -96,6 +98,7 @@ import {prepareInstructions} from '../../constants';
 export class UploadComponent {
   #puterService = inject(PuterService);
   #pdf2ImgService = inject(Pdf2ImgService);
+  #router= inject(Router);
   #returnUrl: string | null = null;
   isAuthenticated = this.#puterService.isAuthenticated;
   isLoading = this.#puterService.isLoading;
@@ -137,7 +140,7 @@ export class UploadComponent {
   async handleAnalize(data:IDataAnalyze) {
   this.isProcessing.set(true);
   this.statusText.set('Enviando o arquivo ...');
-
+  const uuid =  uuidv4();
   try {
    const uploadedFile = await this.#puterService.uploadFiles([data.file])
      if(!uploadedFile) return this.statusText.set('Erro ao enviar o arquivo');
@@ -154,7 +157,6 @@ export class UploadComponent {
 
     this.statusText.set('Preparando os dados ...');
 
-    const uuid = new Date();
     const _data = {
       id: uuid,
       resumePath: uploadedFile.path,
@@ -177,8 +179,11 @@ export class UploadComponent {
     _data.feedback= JSON.parse(feedbackText);
 
     await this.#puterService.setKV(`resume:${uuid}`,JSON.stringify(_data));
-    this.statusText.set('Análise concluída ! , redirecionando ...')
-    console.log(_data);
+    this.statusText.set('Análise concluída, redirecionando ...')
+    setTimeout(()=>{
+      this.#router.navigateByUrl(`/resume/${uuid}`)
+    },1000)
+
   } catch (error) {
     console.log(error)
     throw error;
