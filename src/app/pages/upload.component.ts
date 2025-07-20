@@ -1,9 +1,12 @@
-import {Component, effect, signal} from '@angular/core';
+import {Component, inject, signal} from '@angular/core';
 import {NavbarComponent} from '../components/navbar.component';
 import {NgxDropzoneModule} from 'ngx-dropzone';
 import {DecimalPipe} from '@angular/common';
 import {FormsModule, NgForm} from '@angular/forms';
-
+import {IDataAnalyze} from '../interfaces/data-analyze.interface';
+import {PuterService} from '../services/puter.service';
+import {Pdf2ImgService} from '../services/pdf2img.service';
+import {prepareInstructions} from '../../constants';
 
 @Component({
   selector: 'app-upload',
@@ -91,6 +94,13 @@ import {FormsModule, NgForm} from '@angular/forms';
   `
 })
 export class UploadComponent {
+  #puterService = inject(PuterService);
+  #pdf2ImgService = inject(Pdf2ImgService);
+  #returnUrl: string | null = null;
+  isAuthenticated = this.#puterService.isAuthenticated;
+  isLoading = this.#puterService.isLoading;
+  authState = this.#puterService.authState;
+  prepareInstructions=prepareInstructions
   isProcessing = signal<boolean>(false);
   statusText = signal<string>('');
   file = signal<File | null>(null);
@@ -99,7 +109,6 @@ export class UploadComponent {
     jobTitle: '',
     jobDescription: ''
   };
-
   onSelect(event:any) {
     this.file.set(event.addedFiles[0]);
   }
@@ -109,8 +118,70 @@ export class UploadComponent {
   }
 
   handleSubmit(form:NgForm){
-    if (form.invalid || !this.file()) { // Adiciona validação do arquivo
+    if (form.invalid || !this.file()) {
       return;
     }
+    if(this.file()?.type === 'application/pdf'){
+      const data: IDataAnalyze = {
+        ...form.value,
+        file: this.file()
+      }
+      console.log(data);
+      this.handleAnalize(data);
+      return;
+    }
+
+  }
+
+
+  async handleAnalize(data:IDataAnalyze) {
+  this.isProcessing.set(true);
+  this.statusText.set('Enviando o arquivo ...');
+
+  try {
+   const uploadedFile = await this.#puterService.uploadFiles([data.file])
+     if(!uploadedFile) return this.statusText.set('Erro ao enviar o arquivo');
+
+   this.statusText.set('Convertendo para imagem ...');
+
+   const imageFile = await this.#pdf2ImgService.convertPdfToImage(data.file)
+    if(!imageFile) return this.statusText.set('Erro ao converter a imagem');
+
+   this.statusText.set('Enviando a imagem ...');
+
+   const uploadedImage = await this.#puterService.uploadFiles([imageFile.file!])
+    if(!uploadedImage) return  this.statusText.set('Erro ao enviar a imagem');
+
+    this.statusText.set('Preparando os dados ...');
+
+    const uuid = new Date();
+    const _data = {
+      id: uuid,
+      resumePath: uploadedFile.path,
+      imagePath: uploadedImage.path,
+      companyName: data.companyName,
+      jobTitle: data.jobTitle,
+      jobDescription: data.jobDescription,
+      feedback: '',
+    }
+    await this.#puterService.setKV(`resume:${uuid}`,JSON.stringify(_data));
+    this.statusText.set('Analisando ...')
+
+    const feedback = await this.#puterService.provideFeedback(
+      uploadedFile.path,this.prepareInstructions(data.jobTitle,data.jobDescription)
+    )
+    if(!feedback) return this.statusText.set('Erro ao analisar currículo ...')
+
+    const feedbackText = typeof feedback.message.content === 'string' ? feedback.message.content : feedback.message.content[0].text;
+
+    _data.feedback= JSON.parse(feedbackText);
+
+    await this.#puterService.setKV(`resume:${uuid}`,JSON.stringify(_data));
+    this.statusText.set('Análise concluída ! , redirecionando ...')
+    console.log(_data);
+  } catch (error) {
+    console.log(error)
+    throw error;
+  }
   }
 }
