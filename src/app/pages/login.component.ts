@@ -38,11 +38,11 @@ export class LoginComponent implements OnInit{
   isLoading = this.#puterService.isLoading;
   authState = this.#puterService.authState;
 
-  signIn () {
+  async signIn () {
     return this.#puterService.signIn().then(()=>
     this.#router.navigateByUrl(this.#returnUrl || '/'));
   }
-  signOut () {
+  async signOut () {
     return this.#puterService.signOut()
   }
 
