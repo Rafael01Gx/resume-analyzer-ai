@@ -3,7 +3,7 @@ import {ActivatedRoute} from '@angular/router';
 import {PuterService} from '../services/puter.service';
 import {SummaryComponent} from '../components/summary.component';
 import {AtsComponent} from '../components/ats.component';
-import {DetailsComponent} from '../components/details.component';
+import {DetailsComponent} from '../components/details/details.component';
 
 @Component({
   selector: 'app-resume',
@@ -19,10 +19,10 @@ import {DetailsComponent} from '../components/details.component';
       <div class="flex flex-row w-full max-lg:flex-col-reverse">
         <section
           class="feedback-section bg-[url('/images/bg-small.svg')] bg-cover h-[100vh] sticky top-0 items-center justify-center">
-          @if (imageUrl.length > 0 && resumeUrl.length > 0) {
+          @if (imageUrl() && resumeUrl()) {
             <div class="animate-in fade-in duration-1000 gradient-border max-sm:m-0 h-[90%] max-w-xl:h-fit w-fit">
               <a [href]="resumeUrl()" target="_blank" rel="noopener noreferrer">
-                <img [src]="imageUrl()" class="w-full object-contain rounded-2xl" alt="resume" title="curriculo"/>
+                <img [src]="imageUrl()" class="w-full h-full object-contain rounded-2xl" alt="resume" title="curriculo"/>
               </a>
             </div>
           }
@@ -33,7 +33,9 @@ import {DetailsComponent} from '../components/details.component';
             <div class="flex flex-col gap-8 animate-in fade-in duration-1000">
               <app-summary [feedBack]="feedback()!"/>
               <app-ats [score]="feedback()?.ATS?.score||0" [suggestions]="feedback()?.ATS?.tips || []"/>
-              <app-details [feedBack]="feedback()!" />
+
+                <app-details [feedback]="feedback()!"  />
+
             </div>
           } @else {
             <img src="/images/resume-scan-2.gif" class="w-full" alt="scan"/>
@@ -69,7 +71,7 @@ constructor() {
   }
 
   async getResume(id:string){
-    const resume =await this.#puterService.getKV(`resume:${id}`)
+    const resume = await this.#puterService.getKV(`resume:${id}`)
     if(!resume) return;
 
     const data = JSON.parse(resume)
