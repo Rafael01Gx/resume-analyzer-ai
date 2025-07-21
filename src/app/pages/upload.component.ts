@@ -24,8 +24,8 @@ import {Router} from '@angular/router';
         <div class="page-heading py-16">
           <h1>Feedback inteligente para o emprego dos seus sonhos</h1>
           @if (isProcessing()) {
-            <h2>{{ statusText() }}</h2>
-            <img src="images/resume-scan.gif" alt="scan image" class="w-full">
+            <h2 class="animate-pulse">{{ statusText() }}</h2>
+            <img src="images/resume-scan.gif" alt="scan image" class="size-[400px]">
           } @else {
             <h2>envie seu currículo para uma pontuação ATS e dicas de melhoria</h2>
           }
@@ -129,7 +129,6 @@ export class UploadComponent {
         ...form.value,
         file: this.file()
       }
-      console.log(data);
       this.handleAnalize(data);
       return;
     }
@@ -171,8 +170,8 @@ export class UploadComponent {
 
     const feedback = await this.#puterService.provideFeedback(
       uploadedFile.path,this.prepareInstructions(data.jobTitle,data.jobDescription)
-    )
-    if(!feedback) return this.statusText.set('Erro ao analisar currículo ...')
+    ).catch((error)=>this.statusText.set("error.message.erro"))
+    if(!feedback) return this.statusText.set('Erro ao analisar currículo ...');
 
     const feedbackText = typeof feedback.message.content === 'string' ? feedback.message.content : feedback.message.content[0].text;
 
