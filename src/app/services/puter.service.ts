@@ -1,17 +1,19 @@
-import { Injectable, signal, computed, inject, DestroyRef } from '@angular/core';
+import {Injectable, signal, computed, inject, DestroyRef, PLATFORM_ID} from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import {isPlatformBrowser} from '@angular/common';
 
 @Injectable({
   providedIn: 'root'
 })
 export class PuterService {
+  #platformId= inject(PLATFORM_ID);
   private readonly destroyRef = inject(DestroyRef);
 
-  private readonly _isLoading = signal<boolean>(true);
+  private readonly _isLoading = signal<boolean| null>(null);
   private readonly _error = signal<string | null>(null);
   private readonly _puterReady = signal<boolean>(false);
   private readonly _user = signal<PuterUser | null>(null);
-  private readonly _isAuthenticated = signal<boolean>(false);
+  private readonly _isAuthenticated = signal<boolean| null>(false);
 
   readonly isLoading = this._isLoading.asReadonly();
   readonly error = this._error.asReadonly();
@@ -21,12 +23,16 @@ export class PuterService {
 
   readonly authState = computed((): AuthState => ({
     user: this._user(),
-    isAuthenticated: this._isAuthenticated(),
-    isLoading: this._isLoading(),
+    isAuthenticated: this._isAuthenticated()!,
+    isLoading: this._isLoading()!,
     error: this._error()
   }));
 
   constructor() {
+    if(isPlatformBrowser(this.#platformId)){
+      this._isAuthenticated.set(!!(localStorage.getItem('puter.auth.token')))
+      console.log(this._isAuthenticated())
+    }
     this.init();
   }
 
@@ -118,6 +124,7 @@ export class PuterService {
 
     try {
       await puter.auth.signIn();
+      const puter_user = await puter.auth.getUser();
       await this.checkAuthStatus();
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Sign in failed';
@@ -252,7 +259,7 @@ export class PuterService {
           ],
         },
       ],
-      { model:'claude-3-7-sonnet' } // 'claude-sonnet-4'  'claude-3-7-sonnet'
+      { model:'claude-sonnet-4' } // 'claude-sonnet-4'  'claude-3-7-sonnet'
     ) as Promise<AIResponse | undefined>;
   }
 
@@ -290,7 +297,7 @@ export class PuterService {
       this.setError('Puter.js not available');
       return;
     }
-    return puter.kv.delete(key);
+    return puter.kv.del(key);
   }
 
   async listKV(pattern: string, returnValues: boolean = false): Promise<string[] | KVItem[] | undefined> {

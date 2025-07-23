@@ -26,7 +26,7 @@
       kv: {
         get: (key: string) => Promise<string | null>;
         set: (key: string, value: string) => Promise<boolean>;
-        delete: (key: string) => Promise<boolean>;
+        del: (key: string) => Promise<boolean>;
         list: (pattern: string, returnValues?: boolean) => Promise<string[]>;
         flush: () => Promise<boolean>;
       };
