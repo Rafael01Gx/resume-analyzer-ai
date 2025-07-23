@@ -1,4 +1,4 @@
-import {Component, inject, signal} from '@angular/core';
+import {Component, effect, inject, signal} from '@angular/core';
 import {NavbarComponent} from '../components/navbar.component';
 import {NgxDropzoneModule} from 'ngx-dropzone';
 import {DecimalPipe} from '@angular/common';
@@ -18,7 +18,7 @@ import {Router} from '@angular/router';
   template: `
     <main class="bg-[url('/images/bg-main.svg')] bg-cover">
 
-      <app-navbar/>
+      <app-navbar />
 
       <section class="main-section">
         <div class="page-heading py-16">
@@ -33,19 +33,19 @@ import {Router} from '@angular/router';
             <form id="upload-form" #f="ngForm" (submit)="handleSubmit(f)" class="flex flex-col gap-4 mt-8">
               <div class="form-div">
                 <label for="company-name">Nome da Empresa</label>
-                <input type="text" id="company-name" name="company-name" [(ngModel)]="formData.companyName"
+                <input type="text" id="company-name" name="companyName" [(ngModel)]="formData.companyName"
                        class="input-field" placeholder="Digite o Nome da Empresa" required/>
               </div>
 
               <div class="form-div">
                 <label for="job-title">Função</label>
-                <input type="text" id="job-title" name="job-title" [(ngModel)]="formData.jobTitle" class="input-field"
+                <input type="text" id="job-title" name="jobTitle" [(ngModel)]="formData.jobTitle" class="input-field"
                        placeholder="Digite a Função" required/>
               </div>
 
               <div class="form-div">
                 <label for="job-description">Descrição do Trabalho</label>
-                <textarea rows="5" id="job-description" name="job-description" [(ngModel)]="formData.jobDescription"
+                <textarea rows="5" id="job-description" name="jobDescription" [(ngModel)]="formData.jobDescription"
                           class="input-field" placeholder="Descreva sobre sua função" required></textarea>
               </div>
 
@@ -99,10 +99,7 @@ export class UploadComponent {
   #puterService = inject(PuterService);
   #pdf2ImgService = inject(Pdf2ImgService);
   #router= inject(Router);
-  #returnUrl: string | null = null;
   isAuthenticated = this.#puterService.isAuthenticated;
-  isLoading = this.#puterService.isLoading;
-  authState = this.#puterService.authState;
   prepareInstructions=prepareInstructions
   isProcessing = signal<boolean>(false);
   statusText = signal<string>('');
@@ -112,6 +109,7 @@ export class UploadComponent {
     jobTitle: '',
     jobDescription: ''
   };
+
   onSelect(event:any) {
     this.file.set(event.addedFiles[0]);
   }
@@ -156,36 +154,69 @@ export class UploadComponent {
 
     this.statusText.set('Preparando os dados ...');
 
-    const _data = {
-      id: uuid,
-      resumePath: uploadedFile.path,
-      imagePath: uploadedImage.path,
-      companyName: data.companyName,
-      jobTitle: data.jobTitle,
-      jobDescription: data.jobDescription,
-      feedback: '',
-    }
-    await this.#puterService.setKV(`resume:${uuid}`,JSON.stringify(_data));
-    this.statusText.set('Analisando ...')
 
-    const feedback = await this.#puterService.provideFeedback(
-      uploadedFile.path,this.prepareInstructions(data.jobTitle,data.jobDescription)
-    ).catch((error)=>this.statusText.set("error.message.erro"))
-    if(!feedback) return this.statusText.set('Erro ao analisar currículo ...');
+        const _data = {
+          id: uuid,
+          resumePath: uploadedFile.path,
+          imagePath: uploadedImage.path,
+          companyName: data.companyName,
+          jobTitle: data.jobTitle,
+          jobDescription: data.jobDescription,
+          feedback: '',
+        }
 
-    const feedbackText = typeof feedback.message.content === 'string' ? feedback.message.content : feedback.message.content[0].text;
 
-    _data.feedback= JSON.parse(feedbackText);
+        await this.#puterService.setKV(`resume:${uuid}`,JSON.stringify(_data));
+        this.statusText.set('Analisando ...')
 
-    await this.#puterService.setKV(`resume:${uuid}`,JSON.stringify(_data));
-    this.statusText.set('Análise concluída, redirecionando ...')
-    setTimeout(()=>{
-      this.#router.navigateByUrl(`/resume/${uuid}`)
-    },1000)
+        const feedback = await this.#puterService.provideFeedback(
+          uploadedFile.path,this.prepareInstructions(data.jobTitle,data.jobDescription)
+        )
+        if(!feedback) {
+            const imageName = this.getFileNameFromPath(uploadedImage.path);
+            await this.#puterService.deleteFile(imageName);
+
+            const resumeName = this.getFileNameFromPath(uploadedFile.path);
+            await this.#puterService.deleteFile(resumeName);
+
+          return this.statusText.set('Erro ao analisar currículo ...')
+        }
+
+        const feedbackText = typeof feedback.message.content === 'string' ? feedback.message.content : feedback.message.content[0].text;
+
+        _data.feedback= JSON.parse(feedbackText);
+
+        await this.#puterService.setKV(`resume:${uuid}`,JSON.stringify(_data));
+        this.statusText.set('Análise concluída, redirecionando ...')
+        setTimeout(()=>{
+          this.#router.navigateByUrl(`/resume/${uuid}`)
+        },1000)
 
   } catch (error) {
     console.log(error)
     throw error;
   }
+  }
+
+  async handleDelete(file:Resume) {
+
+    try {
+      await this.#puterService.deleteKV(`resume:${file.id}`)
+      if(file.imagePath){
+        const imageName = this.getFileNameFromPath(file.imagePath);
+        await this.#puterService.deleteFile(imageName);
+      }
+      if(file.resumePath){
+        const resumeName = this.getFileNameFromPath(file.resumePath);
+        await this.#puterService.deleteFile(resumeName);
+      }
+      return ;
+    } catch (error) {
+      console.log(error)
+    }
+  };
+  private getFileNameFromPath(path: string): string {
+    const lastSlashIndex = path.lastIndexOf('/');
+    return lastSlashIndex !== -1 ? path.substring(lastSlashIndex + 1) : path;
   }
 }

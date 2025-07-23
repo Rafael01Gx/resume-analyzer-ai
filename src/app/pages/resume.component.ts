@@ -1,5 +1,5 @@
 import {Component, effect, inject, OnInit, resource, signal} from '@angular/core';
-import {ActivatedRoute} from '@angular/router';
+import {ActivatedRoute, Router} from '@angular/router';
 import {PuterService} from '../services/puter.service';
 import {SummaryComponent} from '../components/summary.component';
 import {AtsComponent} from '../components/ats.component';
@@ -50,9 +50,6 @@ import {DetailsComponent} from '../components/details/details.component';
 export class ResumeComponent implements OnInit{
   #activatedRoute = inject(ActivatedRoute);
   #puterService = inject(PuterService);
-  isAuthenticated = this.#puterService.isAuthenticated;
-  isLoading = this.#puterService.isLoading;
-  authState = this.#puterService.authState;
   resumeId= signal<string|null>(null);
   imageUrl = signal<string>('');
   resumeUrl = signal<string>('');
@@ -68,6 +65,7 @@ constructor() {
 
   ngOnInit() {
     this.resumeId.set(this.#activatedRoute.snapshot.params['id']);
+    this.getResume(this.resumeId()!)
   }
 
   async getResume(id:string){
