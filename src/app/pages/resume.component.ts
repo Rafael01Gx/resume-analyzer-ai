@@ -1,5 +1,5 @@
-import {Component, effect, inject, OnInit, resource, signal} from '@angular/core';
-import {ActivatedRoute, Router} from '@angular/router';
+import {Component, effect, inject, OnInit, signal} from '@angular/core';
+import {ActivatedRoute} from '@angular/router';
 import {PuterService} from '../services/puter.service';
 import {SummaryComponent} from '../components/summary.component';
 import {AtsComponent} from '../components/ats.component';

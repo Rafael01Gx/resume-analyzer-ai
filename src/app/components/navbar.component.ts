@@ -1,4 +1,4 @@
-import {ChangeDetectorRef, Component, computed, effect, inject, input, signal} from '@angular/core';
+import { Component, inject, input, signal} from '@angular/core';
 import {PuterService} from '../services/puter.service';
 import {Router} from '@angular/router';
 

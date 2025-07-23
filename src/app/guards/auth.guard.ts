@@ -11,8 +11,6 @@ export const authGuard: CanActivateFn = (route, state) => {
   if (isPlatformBrowser(platformId)) {
     const isAuthenticated = puterService.isAuthenticated();
 
-    console.log('Guard (Navegador):', isAuthenticated ? 'Autenticado' : 'Não Autenticado');
-
     if (isAuthenticated) {
       return true;
     } else {
