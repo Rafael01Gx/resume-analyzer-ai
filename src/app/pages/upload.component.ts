@@ -1,4 +1,4 @@
-import {Component, effect, inject, signal} from '@angular/core';
+import {Component, inject, signal} from '@angular/core';
 import {NavbarComponent} from '../components/navbar.component';
 import {NgxDropzoneModule} from 'ngx-dropzone';
 import {DecimalPipe} from '@angular/common';
@@ -44,9 +44,9 @@ import {Router} from '@angular/router';
               </div>
 
               <div class="form-div">
-                <label for="job-description">Descrição do Trabalho</label>
+                <label for="job-description">Descrição da Vaga</label>
                 <textarea rows="5" id="job-description" name="jobDescription" [(ngModel)]="formData.jobDescription"
-                          class="input-field" placeholder="Descreva sobre sua função" required></textarea>
+                          class="input-field" placeholder="Liste as atividades que irá desempenhar ou cole a descrição da vaga aqui.." required></textarea>
               </div>
 
               <div class="form-div">
