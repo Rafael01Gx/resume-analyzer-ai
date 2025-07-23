@@ -1,5 +1,4 @@
 import {Injectable, signal, computed, inject, DestroyRef, PLATFORM_ID} from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import {isPlatformBrowser} from '@angular/common';
 
 @Injectable({

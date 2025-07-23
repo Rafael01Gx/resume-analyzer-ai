@@ -1,6 +1,5 @@
 import {Component, computed, effect, inject, OnInit, signal} from '@angular/core';
 import {PuterService} from '../services/puter.service';
-import {Router} from '@angular/router';
 
 @Component({
   selector: 'app-wipe',
