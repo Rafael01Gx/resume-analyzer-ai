@@ -1,6 +1,7 @@
-import { Component, effect, inject, input, signal} from '@angular/core';
+import {Component, effect, inject, input, OnInit, PLATFORM_ID, signal} from '@angular/core';
 import {ScoreCircleComponent} from './score-circle.component';
 import {PuterService} from '../services/puter.service';
+import {isPlatformBrowser} from '@angular/common';
 
 @Component({
   selector: 'app-resume-card',
@@ -37,28 +38,61 @@ import {PuterService} from '../services/puter.service';
     }
   `
 })
-export class ResumeCardComponent {
+export class ResumeCardComponent implements OnInit {
   isMock = input<boolean>(false)
   key = input<number>()
   resume = input<Resume>()
+
   #puterService = inject(PuterService);
+  #platformId = inject(PLATFORM_ID);
   #authState = this.#puterService.authState();
   resumeUrl = signal<string>('');
 
   constructor() {
     effect(() => {
       if(this.resume()){
-        this.loadResume();
+        this.loadResume().catch(err => console.error('Erro ao carregar imagem do currículo:', err));
       }
     });
   }
 
-  async loadResume(){
-    if(this.isMock()) return this.resumeUrl.set(this.resume()?.imagePath!)
-    const blob = await this.#puterService.readFile(this.resume()?.imagePath!)
-    if(!blob) return;
-    let url = URL.createObjectURL(blob);
-    this.resumeUrl.set(url);
+  ngOnInit() {
+    if (this.resume()) {
+      this.loadResume().catch(err => console.error('Erro ao carregar imagem do currículo no OnInit:', err));
+    }
   }
 
+  async loadResume(){
+    if(this.isMock()) {
+      this.resumeUrl.set(this.resume()?.imagePath || '');
+      return;
+    }
+
+    if (isPlatformBrowser(this.#platformId)) {
+      try {
+        const imagePath = this.resume()?.imagePath;
+        if (!imagePath) {
+          console.warn('Caminho da imagem do currículo não fornecido.');
+          this.resumeUrl.set('');
+          return;
+        }
+
+        const blob = await this.#puterService.readFile(imagePath);
+        if(!blob) {
+          console.warn('Nenhum blob de imagem retornado para:', imagePath);
+          this.resumeUrl.set('');
+          return;
+        }
+
+        let url = URL.createObjectURL(blob);
+        this.resumeUrl.set(url);
+      } catch (error) {
+        console.error('Erro ao processar imagem do currículo no navegador:', error);
+        this.resumeUrl.set('');
+      }
+    } else {
+
+      this.resumeUrl.set('');
+    }
+  }
 }

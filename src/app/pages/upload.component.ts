@@ -7,18 +7,18 @@ import {IDataAnalyze} from '../interfaces/data-analyze.interface';
 import {PuterService} from '../services/puter.service';
 import {Pdf2ImgService} from '../services/pdf2img.service';
 import {prepareInstructions} from '../../constants';
-import { v4 as uuidv4 } from 'uuid';
+import {v4 as uuidv4} from 'uuid';
 import {Router} from '@angular/router';
 
 @Component({
   selector: 'app-upload',
   imports: [
-    NavbarComponent,NgxDropzoneModule,DecimalPipe,FormsModule
+    NavbarComponent, NgxDropzoneModule, DecimalPipe, FormsModule
   ],
   template: `
     <main class="bg-[url('/images/bg-main.svg')] bg-cover">
 
-      <app-navbar />
+      <app-navbar/>
 
       <section class="main-section">
         <div class="page-heading py-16">
@@ -46,7 +46,9 @@ import {Router} from '@angular/router';
               <div class="form-div">
                 <label for="job-description">Descrição da Vaga</label>
                 <textarea rows="5" id="job-description" name="jobDescription" [(ngModel)]="formData.jobDescription"
-                          class="input-field" placeholder="Liste as atividades que irá desempenhar ou cole a descrição da vaga aqui.." required></textarea>
+                          class="input-field"
+                          placeholder="Liste as atividades que irá desempenhar ou cole a descrição da vaga aqui.."
+                          required></textarea>
               </div>
 
               <div class="form-div">
@@ -98,9 +100,9 @@ import {Router} from '@angular/router';
 export class UploadComponent {
   #puterService = inject(PuterService);
   #pdf2ImgService = inject(Pdf2ImgService);
-  #router= inject(Router);
+  #router = inject(Router);
   isAuthenticated = this.#puterService.isAuthenticated;
-  prepareInstructions=prepareInstructions
+  prepareInstructions = prepareInstructions
   isProcessing = signal<boolean>(false);
   statusText = signal<string>('');
   file = signal<File | null>(null);
@@ -110,7 +112,7 @@ export class UploadComponent {
     jobDescription: ''
   };
 
-  onSelect(event:any) {
+  onSelect(event: any) {
     this.file.set(event.addedFiles[0]);
   }
 
@@ -118,11 +120,11 @@ export class UploadComponent {
     this.file.set(null);
   }
 
-  handleSubmit(form:NgForm){
+  handleSubmit(form: NgForm) {
     if (form.invalid || !this.file()) {
       return;
     }
-    if(this.file()?.type === 'application/pdf'){
+    if (this.file()?.type === 'application/pdf') {
       const data: IDataAnalyze = {
         ...form.value,
         file: this.file()
@@ -134,87 +136,106 @@ export class UploadComponent {
   }
 
 
-  async handleAnalize(data:IDataAnalyze) {
-  this.isProcessing.set(true);
-  this.statusText.set('Enviando o arquivo ...');
-  const uuid =  uuidv4();
-  try {
-   const uploadedFile = await this.#puterService.uploadFiles([data.file])
-     if(!uploadedFile) return this.statusText.set('Erro ao enviar o arquivo');
+  async handleAnalize(data: IDataAnalyze) {
+    this.isProcessing.set(true);
+    this.statusText.set('Enviando o arquivo ...');
+    const uuid = uuidv4();
+    try {
+      const uploadedFile = await this.#puterService.uploadFiles([data.file])
+      if (!uploadedFile) {
+        setTimeout(() => {
+          this.isProcessing.set(false);
+        },3000)
+        return this.statusText.set('Erro ao enviar o arquivo');
+      }
+      this.statusText.set('Convertendo para imagem ...');
 
-   this.statusText.set('Convertendo para imagem ...');
+      const imageFile = await this.#pdf2ImgService.convertPdfToImage(data.file)
+      if (!imageFile) {
+        setTimeout(() => {
+          this.isProcessing.set(false);
+        },3000)
+        return this.statusText.set('Erro ao converter a imagem');
+      }
 
-   const imageFile = await this.#pdf2ImgService.convertPdfToImage(data.file)
-    if(!imageFile) return this.statusText.set('Erro ao converter a imagem');
+      this.statusText.set('Enviando a imagem ...');
 
-   this.statusText.set('Enviando a imagem ...');
+      const uploadedImage = await this.#puterService.uploadFiles([imageFile.file!])
+      if (!uploadedImage) {
+        setTimeout(() => {
+          this.isProcessing.set(false);
+        },3000)
+        return this.statusText.set('Erro ao enviar a imagem');
+      }
 
-   const uploadedImage = await this.#puterService.uploadFiles([imageFile.file!])
-    if(!uploadedImage) return  this.statusText.set('Erro ao enviar a imagem');
-
-    this.statusText.set('Preparando os dados ...');
-
-
-        const _data = {
-          id: uuid,
-          resumePath: uploadedFile.path,
-          imagePath: uploadedImage.path,
-          companyName: data.companyName,
-          jobTitle: data.jobTitle,
-          jobDescription: data.jobDescription,
-          feedback: '',
-        }
+      this.statusText.set('Preparando os dados ...');
 
 
-        await this.#puterService.setKV(`resume:${uuid}`,JSON.stringify(_data));
-        this.statusText.set('Analisando ...')
+      const _data = {
+        id: uuid,
+        resumePath: uploadedFile.path,
+        imagePath: uploadedImage.path,
+        companyName: data.companyName,
+        jobTitle: data.jobTitle,
+        jobDescription: data.jobDescription,
+        feedback: '',
+      }
 
-        const feedback = await this.#puterService.provideFeedback(
-          uploadedFile.path,this.prepareInstructions(data.jobTitle,data.jobDescription)
-        )
-        if(!feedback) {
-            const imageName = this.getFileNameFromPath(uploadedImage.path);
-            await this.#puterService.deleteFile(imageName);
 
-            const resumeName = this.getFileNameFromPath(uploadedFile.path);
-            await this.#puterService.deleteFile(resumeName);
+      await this.#puterService.setKV(`resume:${uuid}`, JSON.stringify(_data));
+      this.statusText.set('Analisando ...')
 
-          return this.statusText.set('Erro ao analisar currículo ...')
-        }
+      const feedback = await this.#puterService.provideFeedback(
+        uploadedFile.path, this.prepareInstructions(data.jobTitle, data.jobDescription)
+      )
+      if (!feedback) {
+        const imageName = this.getFileNameFromPath(uploadedImage.path);
+        await this.#puterService.deleteFile(imageName);
 
-        const feedbackText = typeof feedback.message.content === 'string' ? feedback.message.content : feedback.message.content[0].text;
+        const resumeName = this.getFileNameFromPath(uploadedFile.path);
+        await this.#puterService.deleteFile(resumeName);
 
-        _data.feedback= JSON.parse(feedbackText);
+          setTimeout(() => {
+            this.isProcessing.set(false);
+          },3000)
+          return this.statusText.set('Erro ao receber o feedback, o limite de uso foi excedido ... ');
 
-        await this.#puterService.setKV(`resume:${uuid}`,JSON.stringify(_data));
-        this.statusText.set('Análise concluída, redirecionando ...')
-        setTimeout(()=>{
-          this.#router.navigateByUrl(`/resume/${uuid}`)
-        },1000)
+      }
 
-  } catch (error) {
-    console.log(error)
-    throw error;
+      const feedbackText = typeof feedback.message.content === 'string' ? feedback.message.content : feedback.message.content[0].text;
+
+      _data.feedback = JSON.parse(feedbackText);
+
+      await this.#puterService.setKV(`resume:${uuid}`, JSON.stringify(_data));
+      this.statusText.set('Análise concluída, redirecionando ...')
+      setTimeout(() => {
+        this.#router.navigateByUrl(`/resume/${uuid}`)
+      }, 1000)
+
+    } catch (error) {
+      console.log(error)
+      throw error;
+    }
   }
-  }
 
-  async handleDelete(file:Resume) {
+  async handleDelete(file: Resume) {
 
     try {
       await this.#puterService.deleteKV(`resume:${file.id}`)
-      if(file.imagePath){
+      if (file.imagePath) {
         const imageName = this.getFileNameFromPath(file.imagePath);
         await this.#puterService.deleteFile(imageName);
       }
-      if(file.resumePath){
+      if (file.resumePath) {
         const resumeName = this.getFileNameFromPath(file.resumePath);
         await this.#puterService.deleteFile(resumeName);
       }
-      return ;
+      return;
     } catch (error) {
       console.log(error)
     }
   };
+
   private getFileNameFromPath(path: string): string {
     const lastSlashIndex = path.lastIndexOf('/');
     return lastSlashIndex !== -1 ? path.substring(lastSlashIndex + 1) : path;
