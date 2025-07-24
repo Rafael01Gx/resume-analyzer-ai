@@ -30,9 +30,8 @@ export class PuterService {
   constructor() {
     if(isPlatformBrowser(this.#platformId)){
       this._isAuthenticated.set(!!(localStorage.getItem('puter.auth.token')))
-      this.init();
     }
-
+    this.init();
   }
 
   // Utilitários
@@ -56,7 +55,9 @@ export class PuterService {
     const puter = this.getPuter();
     if (puter) {
       this._puterReady.set(true);
-      this.checkAuthStatus();
+      if(isPlatformBrowser(this.#platformId)){
+        this.checkAuthStatus();
+      }
       return;
     }
 

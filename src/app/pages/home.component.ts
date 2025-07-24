@@ -13,7 +13,7 @@ import {NavbarComponent} from '../components/navbar.component';
 import {ResumeCardComponent} from '../components/resume-card.component';
 import {PuterService} from '../services/puter.service';
 import {resumes} from '../../constants';
-import {isPlatformBrowser} from '@angular/common';
+import {isPlatformBrowser, isPlatformServer} from '@angular/common';
 
 const RESUMES_STATE_KEY = makeStateKey<Resume[]>('appHomeResumes');
 
@@ -127,44 +127,64 @@ export class HomeComponent implements OnInit {
   #platformId = inject(PLATFORM_ID);
   #transferState = inject(TransferState);
   #puterService = inject(PuterService);
-  mockResumes = resumes
+
+  mockResumes = resumes;
   isAuthenticated = this.#puterService.isAuthenticated;
   loadingResumes = signal(false);
   resumes = signal<Resume[]>([]);
   btnText = computed(() => {
     return this.isAuthenticated() ? 'Sair' : 'Entrar'
-  })
+  });
 
   constructor() {
     effect(() => {
-      if (this.isAuthenticated()) {
-        this.loadResumes()
+      if (isPlatformBrowser(this.#platformId)) {
+        if (this.isAuthenticated()) {
+          if (this.resumes().length === 0 && !this.loadingResumes()) {
+            this.fetchAndSetResumes().catch(err => console.error('Erro ao carregar currículos no effect:', err));
+          }
+        } else {
+          this.resumes.set([]);
+        }
       }
     });
   }
 
   ngOnInit() {
-    const cachedResumes = this.#transferState.get<Resume[]>(RESUMES_STATE_KEY, [])
+    const cachedResumes = this.#transferState.get<Resume[]>(RESUMES_STATE_KEY, []);
+
     if (cachedResumes) {
       this.resumes.set(cachedResumes);
       this.loadingResumes.set(false);
       this.#transferState.remove(RESUMES_STATE_KEY);
-    } else if (isPlatformBrowser(this.#platformId)) {
-      this.loadResumes();
+    } else {
+      if (this.isAuthenticated()) {
+        this.fetchAndSetResumes().catch(err => console.error('Erro ao carregar currículos no ngOnInit:', err));
+      }
     }
   }
 
-  async loadResumes() {
+  async fetchAndSetResumes() {
     if (this.loadingResumes() || (isPlatformBrowser(this.#platformId) && this.resumes().length > 0)) {
       return;
     }
+
     this.loadingResumes.set(true);
-    const resumes = await this.#puterService.listKV('resume:*', true) as KVItem[]
-    const parsedResumes = resumes?.map(resume => {
-      return JSON.parse(resume.value) as Resume
-    })
-    this.resumes.set(parsedResumes || []);
-    this.loadingResumes.set(false);
+    try {
+      const resumesData = await this.#puterService.listKV('resume:*', true) as KVItem[];
+      const parsedResumes = resumesData?.map(resume => JSON.parse(resume.value) as Resume) || [];
+
+      if (isPlatformServer(this.#platformId)) {
+        this.#transferState.set(RESUMES_STATE_KEY, parsedResumes);
+      }
+
+      this.resumes.set(parsedResumes);
+    } catch (error) {
+      console.error('Erro ao buscar e parsear currículos:', error);
+      this.resumes.set([]);
+    } finally {
+      this.loadingResumes.set(false);
+    }
   }
 
   loginClick() {
