@@ -1,5 +1,12 @@
-import {Component, computed, effect, inject, OnInit, signal} from '@angular/core';
+import {Component, computed, effect, inject, OnInit, PLATFORM_ID, signal,makeStateKey, TransferState} from '@angular/core';
 import {PuterService} from '../services/puter.service';
+import { isPlatformBrowser, isPlatformServer } from '@angular/common';
+
+
+// Definir chaves únicas para cada pedaço de estado que será transferido
+const AUTH_STATE_KEY = makeStateKey<any>('appWipeAuthState');
+const RESUMES_STATE_KEY = makeStateKey<Resume[]>('appWipeResumesState');
+const FILES_STATE_KEY = makeStateKey<FSItem[]>('appWipeFilesState');
 
 @Component({
   selector: 'app-wipe',
@@ -50,15 +57,15 @@ import {PuterService} from '../services/puter.service';
               </div>
 
               <div class="p-6 mb-8">
-                @if (!files()) {
+                @if (!resumes() || resumes()!.length === 0) {
                   <div class="text-center py-12">
                     <svg class="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor"
                          viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                             d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                     </svg>
-                    <h3 class="text-lg font-medium text-gray-900 mb-2">Nenhum arquivo encontrado</h3>
-                    <p class="text-gray-500">Não há arquivos armazenados em sua conta no momento.</p>
+                    <h3 class="text-lg font-medium text-gray-900 mb-2">Nenhum currículo encontrado</h3>
+                    <p class="text-gray-500">Não há currículos armazenados em sua conta no momento.</p>
                   </div>
                 } @else {
                   <div class="space-y-3">
@@ -89,7 +96,7 @@ import {PuterService} from '../services/puter.service';
                     <div class="w-full mb-4 p-4">
                       <h3 class="text-center text-lg font-semibold text-gray-900">Arquivos</h3>
                     </div>
-                    @for(file of files(); track file) {
+                    @for (file of files(); track file.name) {
                       <div
                         class="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
                         <div class="flex items-center gap-3">
@@ -106,8 +113,6 @@ import {PuterService} from '../services/puter.service';
                       </div>
                     }
                   </div>
-
-
                 }
               </div>
             </div>
@@ -194,73 +199,120 @@ import {PuterService} from '../services/puter.service';
     </div>
   `,
 })
-export class WipeComponent implements OnInit{
-  #puterService = inject(PuterService);
+export class WipeComponent implements OnInit {
 
+  #puterService = inject(PuterService);
+  #platformId = inject(PLATFORM_ID);
+  #transferState = inject(TransferState);
+
+  // Signals para o estado do componente
   auth = signal(this.#puterService.authState());
   files = signal<FSItem[] | null>(null);
   resumes = signal<Resume[] | null>(null);
+
   filesLength = computed(() => this.files() ? this.files()!.length : 0);
 
-
   constructor() {
-    effect(() => {
-      if (this.resumes()) {
-        this.loadFiles()
-      }
-    });
   }
 
-ngOnInit() {
-    setTimeout(()=>{
-      this.loadResumes()
-      this.loadFiles()
-      this.auth.set(this.#puterService.authState())
-    },500)
-}
+  ngOnInit() {
+    if (isPlatformServer(this.#platformId)) {
+      Promise.all([
+        this.#puterService.authState(),
+        this.fetchResumes(),
+        this.fetchFiles()
+      ]).then(([authState, resumesData, filesData]) => {
+        this.#transferState.set(AUTH_STATE_KEY, authState);
+        this.#transferState.set(RESUMES_STATE_KEY, resumesData);
+        this.#transferState.set(FILES_STATE_KEY, filesData);
+      }).catch(err => console.error('Erro ao buscar e salvar dados no server:', err));
 
+    } else if (isPlatformBrowser(this.#platformId)) {
+      const cachedAuthState = this.#transferState.get<any>(AUTH_STATE_KEY, null);
+      const cachedResumes = this.#transferState.get<Resume[]>(RESUMES_STATE_KEY, []);
+      const cachedFiles = this.#transferState.get<FSItem[]>(FILES_STATE_KEY, []);
 
-  async loadFiles() {
-    const files = await this.#puterService.readDirectory("./") as FSItem[]
-    this.files.set(files);
-  };
-  async loadResumes() {
-    const resumes = await this.#puterService.listKV('resume:*',true) as KVItem[]
-    const parsedResumes = resumes?.map(resume => { return JSON.parse(resume.value) as Resume })
-    this.resumes.set(parsedResumes);
+      if (cachedAuthState || cachedResumes || cachedFiles) {
+        if (cachedAuthState) {
+          this.auth.set(cachedAuthState);
+          this.#transferState.remove(AUTH_STATE_KEY);
+        }
+        if (cachedResumes) {
+          this.resumes.set(cachedResumes);
+          this.#transferState.remove(RESUMES_STATE_KEY);
+        }
+        if (cachedFiles) {
+          this.files.set(cachedFiles);
+          this.#transferState.remove(FILES_STATE_KEY);
+        }
+      } else {
+        this.loadInitialData();
+      }
+    }
+  }
 
-  };
+  private async loadInitialData() {
+    try {
+      this.auth.set(this.#puterService.authState());
+      await this.fetchResumes();
+      await this.fetchFiles();
+    } catch (error) {
+      console.error('Erro ao carregar dados iniciais no cliente:', error);
+    }
+  }
+
+  async fetchFiles(): Promise<FSItem[]> {
+    try {
+      const files = await this.#puterService.readDirectory("./") as FSItem[];
+      this.files.set(files);
+      return files;
+    } catch (error) {
+      console.error('Erro ao buscar arquivos:', error);
+      this.files.set(null);
+      return [];
+    }
+  }
+  async fetchResumes(): Promise<Resume[]> {
+    try {
+      const resumes = await this.#puterService.listKV('resume:*', true) as KVItem[];
+      const parsedResumes = resumes?.map(resume => JSON.parse(resume.value) as Resume) || [];
+      this.resumes.set(parsedResumes);
+      return parsedResumes;
+    } catch (error) {
+      console.error('Erro ao buscar currículos:', error);
+      this.resumes.set(null);
+      return [];
+    }
+  }
 
   async handleDeleteAll() {
-    this.files()!.forEach((file) => {
-      this.#puterService.deleteFile(file.name);
-    });
-    await this.#puterService.flushKV();
-    return this.loadFiles();
-  };
-
-
-
-  async handleDelete(file:Resume) {
-
-  try {
-    await this.#puterService.deleteKV(`resume:${file.id}`)
-    if(file.imagePath){
-      const imageName = this.getFileNameFromPath(file.imagePath);
-      await this.#puterService.deleteFile(imageName);
+    try {
+      if (this.files()) {
+        await Promise.all(this.files()!.map(file => this.#puterService.deleteFile(file.name)));
+      }
+      await this.#puterService.flushKV();
+      await this.loadInitialData();
+    } catch (error) {
+      console.error('Erro ao deletar todos os dados:', error);
     }
-    if(file.resumePath){
-      const resumeName = this.getFileNameFromPath(file.resumePath);
-      await this.#puterService.deleteFile(resumeName);
-    }
-    this.loadResumes()
-    this.loadFiles()
-    return ;
-  } catch (error) {
-    console.log(error)
   }
-  };
 
+  async handleDelete(resume: Resume) {
+    try {
+      await this.#puterService.deleteKV(`resume:${resume.id}`);
+      if (resume.imagePath) {
+        const imageName = this.getFileNameFromPath(resume.imagePath);
+        await this.#puterService.deleteFile(imageName);
+      }
+      if (resume.resumePath) {
+        const resumeName = this.getFileNameFromPath(resume.resumePath);
+        await this.#puterService.deleteFile(resumeName);
+      }
+      await this.loadInitialData();
+    } catch (error) {
+      console.error('Erro ao deletar currículo:', error);
+    }
+  }
   private getFileNameFromPath(path: string): string {
     const lastSlashIndex = path.lastIndexOf('/');
     return lastSlashIndex !== -1 ? path.substring(lastSlashIndex + 1) : path;
