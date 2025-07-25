@@ -134,68 +134,86 @@ export class UploadComponent {
   }
 
 
-  async handleAnalize(data:IDataAnalyze) {
-  this.isProcessing.set(true);
-  this.statusText.set('Enviando o arquivo ...');
-  const uuid =  uuidv4();
-  try {
-   const uploadedFile = await this.#puterService.uploadFiles([data.file])
-     if(!uploadedFile) return this.statusText.set('Erro ao enviar o arquivo');
+  async handleAnalize(data: IDataAnalyze) {
+    this.isProcessing.set(true);
+    this.statusText.set('Enviando o arquivo ...');
+    const uuid = uuidv4();
+    try {
+      const uploadedFile = await this.#puterService.uploadFiles([data.file])
+      if (!uploadedFile) {
+        setTimeout(() => {
+          this.isProcessing.set(false);
+        },3000)
+        return this.statusText.set('Erro ao enviar o arquivo');
+      }
+      this.statusText.set('Convertendo para imagem ...');
 
-   this.statusText.set('Convertendo para imagem ...');
+      const imageFile = await this.#pdf2ImgService.convertPdfToImage(data.file)
+      if (!imageFile) {
+        setTimeout(() => {
+          this.isProcessing.set(false);
+        },3000)
+        return this.statusText.set('Erro ao converter a imagem');
+      }
 
-   const imageFile = await this.#pdf2ImgService.convertPdfToImage(data.file)
-    if(!imageFile) return this.statusText.set('Erro ao converter a imagem');
+      this.statusText.set('Enviando a imagem ...');
 
-   this.statusText.set('Enviando a imagem ...');
+      const uploadedImage = await this.#puterService.uploadFiles([imageFile.file!])
+      if (!uploadedImage) {
+        setTimeout(() => {
+          this.isProcessing.set(false);
+        },3000)
+        return this.statusText.set('Erro ao enviar a imagem');
+      }
 
-   const uploadedImage = await this.#puterService.uploadFiles([imageFile.file!])
-    if(!uploadedImage) return  this.statusText.set('Erro ao enviar a imagem');
-
-    this.statusText.set('Preparando os dados ...');
-
-
-        const _data = {
-          id: uuid,
-          resumePath: uploadedFile.path,
-          imagePath: uploadedImage.path,
-          companyName: data.companyName,
-          jobTitle: data.jobTitle,
-          jobDescription: data.jobDescription,
-          feedback: '',
-        }
+      this.statusText.set('Preparando os dados ...');
 
 
-        await this.#puterService.setKV(`resume:${uuid}`,JSON.stringify(_data));
-        this.statusText.set('Analisando ...')
+      const _data = {
+        id: uuid,
+        resumePath: uploadedFile.path,
+        imagePath: uploadedImage.path,
+        companyName: data.companyName,
+        jobTitle: data.jobTitle,
+        jobDescription: data.jobDescription,
+        feedback: '',
+      }
 
-        const feedback = await this.#puterService.provideFeedback(
-          uploadedFile.path,this.prepareInstructions(data.jobTitle,data.jobDescription)
-        )
-        if(!feedback) {
-            const imageName = this.getFileNameFromPath(uploadedImage.path);
-            await this.#puterService.deleteFile(imageName);
 
-            const resumeName = this.getFileNameFromPath(uploadedFile.path);
-            await this.#puterService.deleteFile(resumeName);
+      await this.#puterService.setKV(`resume:${uuid}`, JSON.stringify(_data));
+      this.statusText.set('Analisando ...')
 
-          return this.statusText.set('Erro ao analisar currículo ...')
-        }
+      const feedback = await this.#puterService.provideFeedback(
+        uploadedFile.path, this.prepareInstructions(data.jobTitle, data.jobDescription)
+      )
+      if (!feedback) {
+        const imageName = this.getFileNameFromPath(uploadedImage.path);
+        await this.#puterService.deleteFile(imageName);
 
-        const feedbackText = typeof feedback.message.content === 'string' ? feedback.message.content : feedback.message.content[0].text;
+        const resumeName = this.getFileNameFromPath(uploadedFile.path);
+        await this.#puterService.deleteFile(resumeName);
 
-        _data.feedback= JSON.parse(feedbackText);
+        setTimeout(() => {
+          this.isProcessing.set(false);
+        },3000)
+        return this.statusText.set('Erro ao receber o feedback, o limite de uso foi excedido ... ');
 
-        await this.#puterService.setKV(`resume:${uuid}`,JSON.stringify(_data));
-        this.statusText.set('Análise concluída, redirecionando ...')
-        setTimeout(()=>{
-          this.#router.navigateByUrl(`/resume/${uuid}`)
-        },1000)
+      }
 
-  } catch (error) {
-    console.log(error)
-    throw error;
-  }
+      const feedbackText = typeof feedback.message.content === 'string' ? feedback.message.content : feedback.message.content[0].text;
+
+      _data.feedback = JSON.parse(feedbackText);
+
+      await this.#puterService.setKV(`resume:${uuid}`, JSON.stringify(_data));
+      this.statusText.set('Análise concluída, redirecionando ...')
+      setTimeout(() => {
+        this.#router.navigateByUrl(`/resume/${uuid}`)
+      }, 1000)
+
+    } catch (error) {
+      console.log(error)
+      throw error;
+    }
   }
 
   async handleDelete(file:Resume) {
