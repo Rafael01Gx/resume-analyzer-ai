@@ -10,8 +10,10 @@ import {isPlatformBrowser} from '@angular/common';
       <div class="mx-auto max-w-[90%] h-full">
 
         <div class="bg-white rounded-lg shadow-sm p-6 mb-4">
-          <div class="mb-4"><a href="/" class="inline-flex items-center px-3 py-2 text-gray-700 hover:text-blue-600 hover:bg-blue-50 rounded-lg font-medium transition-all duration-200 group">
-            <svg class="w-4 h-4 mr-2 group-hover:scale-110 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div class="mb-4"><a href="/"
+                               class="inline-flex items-center px-3 py-2 text-gray-700 hover:text-blue-600 hover:bg-blue-50 rounded-lg font-medium transition-all duration-200 group">
+            <svg class="w-4 h-4 mr-2 group-hover:scale-110 transition-transform duration-200" fill="none"
+                 stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
             </svg>
             Voltar
@@ -58,7 +60,7 @@ import {isPlatformBrowser} from '@angular/common';
               </div>
 
               <div class="p-6 mb-8">
-                @if (!files()) {
+                @if (files()?.length === 0 || undefined) {
                   <div class="text-center py-12">
                     <svg class="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor"
                          viewBox="0 0 24 24">
@@ -93,27 +95,29 @@ import {isPlatformBrowser} from '@angular/common';
                       </div>
                     }
                   </div>
-                  <div class="pt-2 flex flex-wrap overflow-hidden mt-6 border-t !border-t-gray-200 ">
-                    <div class="w-full mb-4 p-4">
-                      <h3 class="text-center text-lg font-semibold text-gray-900">Arquivos</h3>
-                    </div>
-                    @for(file of files(); track file) {
-                      <div
-                        class="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-                        <div class="flex items-center gap-3">
-                          <div class="w-8 h-8 bg-white rounded-lg flex items-center justify-center shadow-sm">
-                            <svg class="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                            </svg>
-                          </div>
-                          <div>
-                            <p class="font-medium text-gray-900">{{ file.name }}</p>
+                  @if (files()?.length !== 0 || undefined) {
+                    <div class="pt-2 flex flex-wrap overflow-hidden mt-6 border-t !border-t-gray-200 ">
+                      <div class="w-full mb-4 p-4">
+                        <h3 class="text-center text-lg font-semibold text-gray-900">Arquivos</h3>
+                      </div>
+                      @for (file of files(); track file) {
+                        <div
+                          class="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                          <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 bg-white rounded-lg flex items-center justify-center shadow-sm">
+                              <svg class="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                      d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                              </svg>
+                            </div>
+                            <div>
+                              <p class="font-medium text-gray-900">{{ file.name }}</p>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    }
-                  </div>
+                      }
+                    </div>
+                  }
 
 
                 }
@@ -246,7 +250,7 @@ ngOnInit() {
       this.#puterService.deleteFile(file.name);
     });
     await this.#puterService.flushKV();
-    return this.loadFiles();
+    return window.location.reload();
   };
 
 

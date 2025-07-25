@@ -185,20 +185,23 @@ export class UploadComponent {
 
       const feedback = await this.#puterService.provideFeedback(
         uploadedFile.path, this.prepareInstructions(data.jobTitle, data.jobDescription)
-      )
+      ).catch(error => {
+        this.statusText.set((error.error.delegate? 'Você atingiu o limite de Tokens por período. Tente mais tarde!': 'Erro ao receber o feedback' ))
+      })
       if (!feedback) {
         const imageName = this.getFileNameFromPath(uploadedImage.path);
         await this.#puterService.deleteFile(imageName);
 
         const resumeName = this.getFileNameFromPath(uploadedFile.path);
         await this.#puterService.deleteFile(resumeName);
-
+        await this.#puterService.deleteKV(`resume:${uuid}`);
         setTimeout(() => {
           this.isProcessing.set(false);
-        },3000)
-        return this.statusText.set('Erro ao receber o feedback, o limite de uso foi excedido ... ');
+        },5000)
+        return ;
 
       }
+      console.log('paasou aqui')
 
       const feedbackText = typeof feedback.message.content === 'string' ? feedback.message.content : feedback.message.content[0].text;
 

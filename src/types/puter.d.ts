@@ -66,6 +66,12 @@ interface AIResponse {
     cost: number;
   }[];
   via_ai_chat_service: boolean;
+  error?: {
+    code: string;
+    delegate:string;
+    message: string;
+    status: number
+  };
 }
 
 interface AuthState {
