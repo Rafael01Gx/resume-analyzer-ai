@@ -83,6 +83,12 @@ import {isPlatformBrowser} from '@angular/common';
               </div>
             </div>
           </div>
+          <div class="mb-10 p-4 text-center max-w-3xl" >
+            <h2 class="font-semibold text-lg ">Visualize o histórico de seus currículos e avaliações.</h2>
+            <p class="text-gray-600 mt-2">
+              Aqui você encontrará todos os currículos que você enviou, organizados de forma clara para fácil acesso e acompanhamento das avaliações de IA.
+            </p>
+          </div>
           <div class="resumes-section">
             @for (resume of mockResumes; track resume.id; let i = $index) {
               <app-resume-card [isMock]="true" [key]="i" [resume]="resume"/>
