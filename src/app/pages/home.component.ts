@@ -1,8 +1,9 @@
-import {Component, computed, effect, inject, OnInit, signal, ViewChild} from '@angular/core';
+import {Component, computed, effect, inject, OnInit, PLATFORM_ID, signal, ViewChild} from '@angular/core';
 import {NavbarComponent} from '../components/navbar.component';
 import {ResumeCardComponent} from '../components/resume-card.component';
 import {PuterService} from '../services/puter.service';
 import {resumes} from '../../constants';
+import {isPlatformBrowser} from '@angular/common';
 
 @Component({
   selector: 'app-home',
@@ -100,9 +101,9 @@ import {resumes} from '../../constants';
       </section>
     </main>`
 })
-export class HomeComponent implements OnInit{
+export class HomeComponent {
   @ViewChild('nav') navComponent!: any;
-
+  #platformId= inject(PLATFORM_ID)
   #puterService = inject(PuterService);
   mockResumes = resumes
   isAuthenticated = this.#puterService.isAuthenticated;
@@ -113,15 +114,12 @@ export class HomeComponent implements OnInit{
   })
   constructor() {
     effect(() => {
+      if(isPlatformBrowser(this.#platformId)){
       if(this.isAuthenticated()){
         this.loadResumes()
-      }
-    });
+      }}})
   }
 
-  ngOnInit() {
-    this.loadResumes();
-  }
 
   async loadResumes() {
   this.loadingResumes.set(true);

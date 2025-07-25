@@ -1,5 +1,6 @@
-import {Component, computed, effect, inject, OnInit, signal} from '@angular/core';
+import {Component, computed, effect, inject, OnInit, PLATFORM_ID, signal} from '@angular/core';
 import {PuterService} from '../services/puter.service';
+import {isPlatformBrowser} from '@angular/common';
 
 @Component({
   selector: 'app-wipe',
@@ -196,6 +197,7 @@ import {PuterService} from '../services/puter.service';
 })
 export class WipeComponent implements OnInit{
   #puterService = inject(PuterService);
+  #platformId = inject(PLATFORM_ID);
 
   auth = signal(this.#puterService.authState());
   files = signal<FSItem[] | null>(null);
@@ -205,10 +207,11 @@ export class WipeComponent implements OnInit{
 
   constructor() {
     effect(() => {
+      if(isPlatformBrowser(this.#platformId)){
       if (this.resumes()) {
         this.loadFiles()
       }
-    });
+    }});
   }
 
 ngOnInit() {
