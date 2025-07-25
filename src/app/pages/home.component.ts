@@ -87,6 +87,7 @@ import {isPlatformBrowser} from '@angular/common';
             <h2 class="font-semibold text-lg ">Visualize o histórico de seus currículos e avaliações.</h2>
             <p class="text-gray-600 mt-2">
               Aqui você encontrará todos os currículos que você enviou, organizados de forma clara para fácil acesso e acompanhamento das avaliações de IA.
+
             </p>
           </div>
           <div class="resumes-section">
