@@ -10,7 +10,14 @@ import {isPlatformBrowser} from '@angular/common';
       <div class="mx-auto max-w-[90%] h-full">
 
         <div class="bg-white rounded-lg shadow-sm p-6 mb-4">
+          <div class="mb-4"><a href="/" class="inline-flex items-center px-3 py-2 text-gray-700 hover:text-blue-600 hover:bg-blue-50 rounded-lg font-medium transition-all duration-200 group">
+            <svg class="w-4 h-4 mr-2 group-hover:scale-110 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+            </svg>
+            Voltar
+          </a></div>
           <div class="flex items-center justify-between">
+
             <div>
               <h2 class="text-2xl font-bold text-gray-900 mb-2">Gerenciar Dados da Aplicação</h2>
               <p class="text-gray-600">Visualize e gerencie os dados armazenados em sua conta</p>
@@ -63,7 +70,7 @@ import {isPlatformBrowser} from '@angular/common';
                   </div>
                 } @else {
                   <div class="space-y-3">
-                    @for (resume of resumes(); track resume.id; let i = $index) {
+                    @for (resume of resumes(); track resume.id) {
                       <div
                         class="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
                         <div class="flex items-center gap-3">
